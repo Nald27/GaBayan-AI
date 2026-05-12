@@ -1,8 +1,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 
 dotenv.config();
@@ -13,9 +11,6 @@ const PORT = process.env.PORT || 5000;
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 app.use(
   cors({
@@ -36,6 +31,10 @@ app.use(
 );
 
 app.use(express.json({ limit: "1mb" }));
+
+app.get("/", (req, res) => {
+  res.send("GaBayan AI backend is running.");
+});
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -135,13 +134,6 @@ Answer according to the GaBayan AI rules.
       error: "Something went wrong while processing your question.",
     });
   }
-});
-
-// Serve React build in production
-app.use(express.static(path.join(__dirname, "dist")));
-
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.listen(PORT, () => {
