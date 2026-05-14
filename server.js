@@ -115,8 +115,9 @@ const chatBurstLimiter = rateLimit({
 
 /*
   This protects your Gemini free tier.
-  Example: max 5 valid chat attempts every 24 hours per IP.
+  The daily limit is controlled by CHAT_DAILY_LIMIT in your .env or Render environment variables.
 */
+
 const chatDailyLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000,
   limit: CHAT_DAILY_LIMIT,

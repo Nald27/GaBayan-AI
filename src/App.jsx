@@ -12,30 +12,6 @@ const initialMessages = [
   },
 ];
 
-function formatRetryTime(seconds) {
-  if (!seconds || Number.isNaN(Number(seconds))) return "";
-
-  const totalSeconds = Number(seconds);
-
-  if (totalSeconds < 60) {
-    return "in less than a minute";
-  }
-
-  const minutes = Math.ceil(totalSeconds / 60);
-
-  if (minutes < 60) {
-    return `in about ${minutes} minute${minutes === 1 ? "" : "s"}`;
-  }
-
-  const hours = Math.ceil(minutes / 60);
-
-  if (hours < 24) {
-    return `in about ${hours} hour${hours === 1 ? "" : "s"}`;
-  }
-
-  return "tomorrow";
-}
-
 function App() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState(initialMessages);
@@ -135,12 +111,8 @@ function App() {
       }
 
       if (response.status === 429) {
-        const retryText = formatRetryTime(data.retryAfterSeconds);
-
         throw new Error(
-          `${data.error || "Daily chat limit reached."}${
-            retryText ? ` Please try again ${retryText}.` : ""
-          }`
+          data.error || "Chat limit reached. Please try again later."
         );
       }
 
