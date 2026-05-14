@@ -99,11 +99,11 @@ app.use(express.json({ limit: "30kb" }));
 
 /*
   This protects your API from repeated fast clicking/spam.
-  Example: max 3 chat attempts every 1 minute per IP.
+  Example: max 10 chat attempts every 1 minute per IP.
 */
 const chatBurstLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 3,
+  limit: 10,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   identifier: "chat-burst-limit",
@@ -261,11 +261,6 @@ Answer according to the GaBayan AI rules.
 
       return res.json({
         reply,
-        usage: {
-          dailyLimit: req.rateLimit?.limit ?? CHAT_DAILY_LIMIT,
-          remaining: req.rateLimit?.remaining ?? null,
-          resetTime: req.rateLimit?.resetTime ?? null,
-        },
       });
     } catch (error) {
       console.error("GaBayan AI server error:", error);
