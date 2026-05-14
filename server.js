@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
@@ -21,7 +22,11 @@ app.use(
         process.env.CLIENT_URL,
       ].filter(Boolean);
 
-      if (!origin || allowedOrigins.includes(origin) || !process.env.CLIENT_URL) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        !process.env.CLIENT_URL
+      ) {
         return callback(null, true);
       }
 
@@ -31,6 +36,19 @@ app.use(
 );
 
 app.use(express.json({ limit: "1mb" }));
+
+// Limit each IP to 5 chats every 24 hours
+const chatLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+
+  message: {
+    error:
+      "Daily chat limit reached. Please try again tomorrow.",
+  },
+});
 
 app.get("/", (req, res) => {
   res.send("GaBayan AI backend is running.");
@@ -43,7 +61,7 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", chatLimiter, async (req, res) => {
   try {
     const { message } = req.body;
 
