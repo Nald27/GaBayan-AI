@@ -40,7 +40,6 @@ function App() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState(initialMessages);
   const [loading, setLoading] = useState(false);
-  const [limitInfo, setLimitInfo] = useState(null);
 
   const messagesRef = useRef(null);
   const textareaRef = useRef(null);
@@ -149,10 +148,6 @@ function App() {
         throw new Error(data.error || "Request failed. Please try again.");
       }
 
-      if (data.usage) {
-        setLimitInfo(data.usage);
-      }
-
       addMessage(
         "assistant",
         data.reply || "Sorry, I could not generate a response."
@@ -193,9 +188,7 @@ function App() {
   };
 
   const remainingText =
-    limitInfo && typeof limitInfo.remaining === "number"
-      ? `${limitInfo.remaining} of ${limitInfo.dailyLimit} daily chats remaining.`
-      : "Daily usage is limited to help protect the free AI quota.";
+    "Daily usage is limited to help protect the free AI quota.";
 
   return (
     <div className="app">

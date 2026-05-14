@@ -124,7 +124,7 @@ const chatDailyLimiter = rateLimit({
   legacyHeaders: false,
   identifier: "chat-daily-limit",
   handler: createRateLimitHandler(
-    `Daily chat limit reached. You can ask up to ${CHAT_DAILY_LIMIT} questions per day.`,
+    "Daily chat limit reached. Please try again later.",
     24 * 60 * 60
   ),
 });
