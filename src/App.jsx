@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./App.css";
 
 const API_BASE = import.meta.env.VITE_API_URL?.trim() || "";
+const MAX_QUESTION_LENGTH = 1200;
 
 const initialMessages = [
   {
@@ -11,10 +12,35 @@ const initialMessages = [
   },
 ];
 
+function formatRetryTime(seconds) {
+  if (!seconds || Number.isNaN(Number(seconds))) return "";
+
+  const totalSeconds = Number(seconds);
+
+  if (totalSeconds < 60) {
+    return "in less than a minute";
+  }
+
+  const minutes = Math.ceil(totalSeconds / 60);
+
+  if (minutes < 60) {
+    return `in about ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  }
+
+  const hours = Math.ceil(minutes / 60);
+
+  if (hours < 24) {
+    return `in about ${hours} hour${hours === 1 ? "" : "s"}`;
+  }
+
+  return "tomorrow";
+}
+
 function App() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState(initialMessages);
   const [loading, setLoading] = useState(false);
+  const [limitInfo, setLimitInfo] = useState(null);
 
   const messagesRef = useRef(null);
   const textareaRef = useRef(null);
@@ -60,6 +86,16 @@ function App() {
     });
   }, [messages, loading]);
 
+  const addMessage = (role, content) => {
+    setMessages((prev) => [
+      ...prev,
+      {
+        role,
+        content,
+      },
+    ]);
+  };
+
   const handleAsk = async (e) => {
     e.preventDefault();
 
@@ -67,13 +103,15 @@ function App() {
 
     if (!userQuestion || loading) return;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "user",
-        content: userQuestion,
-      },
-    ]);
+    if (userQuestion.length > MAX_QUESTION_LENGTH) {
+      addMessage(
+        "assistant",
+        `Your question is too long. Please keep it under ${MAX_QUESTION_LENGTH} characters.`
+      );
+      return;
+    }
+
+    addMessage("user", userQuestion);
 
     setQuestion("");
     setLoading(true);
@@ -89,28 +127,42 @@ function App() {
         }),
       });
 
-      const data = await response.json();
+      let data = {};
 
-      if (!response.ok) {
-        throw new Error(data.error || "Request failed.");
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.reply || "Sorry, I could not generate a response.",
-        },
-      ]);
+      if (response.status === 429) {
+        const retryText = formatRetryTime(data.retryAfterSeconds);
+
+        throw new Error(
+          `${data.error || "Daily chat limit reached."}${
+            retryText ? ` Please try again ${retryText}.` : ""
+          }`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "Request failed. Please try again.");
+      }
+
+      if (data.usage) {
+        setLimitInfo(data.usage);
+      }
+
+      addMessage(
+        "assistant",
+        data.reply || "Sorry, I could not generate a response."
+      );
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "Sorry, GaBayan AI could not connect to the server. Please check if your Express server is running.",
-        },
-      ]);
+      addMessage(
+        "assistant",
+        error.message ||
+          "Sorry, GaBayan AI could not connect to the server. Please try again later."
+      );
     } finally {
       setLoading(false);
     }
@@ -139,6 +191,11 @@ function App() {
       handleAsk(e);
     }
   };
+
+  const remainingText =
+    limitInfo && typeof limitInfo.remaining === "number"
+      ? `${limitInfo.remaining} of ${limitInfo.dailyLimit} daily chats remaining.`
+      : "Daily usage is limited to help protect the free AI quota.";
 
   return (
     <div className="app">
@@ -211,6 +268,7 @@ function App() {
                 type="button"
                 className="clear-button"
                 onClick={handleClearChat}
+                disabled={loading}
               >
                 Clear
               </button>
@@ -221,10 +279,14 @@ function App() {
               passwords, ID numbers, or private case details.
             </div>
 
+            <div className="privacy-note" role="status">
+              {remainingText}
+            </div>
+
             <div className="messages" ref={messagesRef}>
               {messages.map((message, index) => (
                 <div
-                  key={index}
+                  key={`${message.role}-${index}`}
                   className={`message-row ${
                     message.role === "user" ? "from-user" : "from-ai"
                   }`}
@@ -234,7 +296,9 @@ function App() {
                   </div>
 
                   <div className="message-bubble">
-                    <p>{message.content}</p>
+                    {message.content.split("\n").map((line, lineIndex) => (
+                      <p key={lineIndex}>{line || "\u00A0"}</p>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -250,8 +314,6 @@ function App() {
                   </div>
                 </div>
               )}
-
-            
             </div>
 
             <form className="chat-form" onSubmit={handleAsk}>
@@ -266,11 +328,14 @@ function App() {
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder='Example: "My employer has not paid my salary for 2 months. What should I ask a public attorney and what documents should I prepare?"'
-                maxLength={1200}
+                maxLength={MAX_QUESTION_LENGTH}
+                disabled={loading}
               />
 
               <div className="form-footer">
-                <span>{question.length}/1200</span>
+                <span>
+                  {question.length}/{MAX_QUESTION_LENGTH}
+                </span>
 
                 <button type="submit" disabled={loading || !question.trim()}>
                   {loading ? "Checking..." : "Ask GaBayan AI"}
@@ -295,6 +360,7 @@ function App() {
                     key={item.label}
                     className="quick-button"
                     onClick={() => handleQuickQuestion(item.question)}
+                    disabled={loading}
                   >
                     <span>{item.label}</span>
                     <small>Prepare questions</small>
